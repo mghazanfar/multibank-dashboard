@@ -5,7 +5,7 @@ A fullstack Next.js (App Router) trading dashboard with:
 - REST APIs for ticker discovery and mocked historical data
 - WebSocket streaming for real-time price ticks
 - React Query caching for API reads
-- Context-based mocked auth (no Redux)
+- Context-based mocked auth (no Redux since we only have this one state so avoiding an extra library to maintain a global state)
 - Responsive live dashboard with charting and threshold alerts
 - Unit tests for backend market simulation logic
 - Docker containerization
@@ -19,10 +19,10 @@ A fullstack Next.js (App Router) trading dashboard with:
 - `GET /api/history?ticker=AAPL&points=120`
   - Returns mocked historical data with in-memory server-side caching.
 - `POST /api/auth/login`
-  - Mock login endpoint (accepts only demo credentials).
+  - Mock login endpoint (accepts any non-empty username/password).
 - `GET /api/auth/me`
   - Mock auth verification endpoint.
-- `ws://localhost:3001/api/ws` (or `NEXT_PUBLIC_MARKET_WS_URL`)
+- `ws://<host>/api/ws`
   - Realtime subscription channel.
   - Client messages:
     - `{ "type": "subscribe", "symbol": "AAPL" }`
@@ -57,7 +57,7 @@ A fullstack Next.js (App Router) trading dashboard with:
 npm install
 ```
 
-3. Start development servers:
+3. Start development server:
 
 ```bash
 npm run dev
@@ -67,9 +67,9 @@ npm run dev
 
 ## Scripts
 
-- `npm run dev` - starts Next dev + market WebSocket sidecar
+- `npm run dev` - starts custom Next + WebSocket server
 - `npm run build` - production build
-- `npm run start` - starts Next production + market WebSocket sidecar
+- `npm run start` - starts production server
 - `npm run lint` - ESLint
 - `npm run test` - unit tests (Node test runner via `tsx`)
 - `npm run test:watch` - watch mode tests
@@ -100,14 +100,14 @@ docker build -t multibank-realtime-dashboard .
 Run container:
 
 ```bash
-docker run --rm -p 3000:3000 -p 3001:3001 multibank-realtime-dashboard
+docker run --rm -p 3000:3000 multibank-realtime-dashboard
 ```
 
 ## Assumptions & Trade-offs
 
 - Uses in-memory market simulation and cache (no persistent DB).
 - Auth is intentionally mocked for challenge scope.
-- WebSocket feed runs as a sidecar process (`market-ws-server.ts`) for cleaner separation from Next runtime/HMR.
+- WebSocket path is hosted by a custom Next server (`server.ts`) instead of a managed broker.
 - No Kubernetes manifests included in this version.
 
 ## Bonus Features Implemented
