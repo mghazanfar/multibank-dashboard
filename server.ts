@@ -9,7 +9,7 @@ interface ClientState {
 }
 
 const dev = process.env.NODE_ENV !== "production";
-const host = process.env.HOST ?? "0.0.0.0";
+const host = process.env.HOST ?? (dev ? "localhost" : "0.0.0.0");
 const port = Number(process.env.PORT ?? 3000);
 
 const app = next({ dev, hostname: host, port });
@@ -110,6 +110,20 @@ app
     });
 
     const server = createServer((req, res) => {
+      if (dev) {
+        const headerHost = req.headers.host ?? "";
+        const [rawHost, rawPort] = headerHost.split(":");
+        const requestPath = req.url ?? "/";
+
+        if (rawHost === "0.0.0.0") {
+          const redirectPort = rawPort ? `:${rawPort}` : "";
+          res.statusCode = 307;
+          res.setHeader("Location", `http://localhost${redirectPort}${requestPath}`);
+          res.end();
+          return;
+        }
+      }
+
       requestHandler(req, res);
     });
 

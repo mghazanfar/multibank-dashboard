@@ -193,6 +193,54 @@ input {
 
 .auth-card p {
   color: var(--muted);
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.auth-hint {
+  position: relative;
+}
+
+.credentials-trigger {
+  border: 1px solid #3f5e90;
+  background: #122344;
+  color: #9cd0ff;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.16rem 0.62rem;
+  cursor: pointer;
+}
+
+.credentials-tooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 30;
+  width: min(360px, calc(100vw - 3rem));
+  background: #0f1a31;
+  border: 1px solid #365684;
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  color: #d6e4ff;
+  font-size: 0.82rem;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.credentials-tooltip code {
+  color: #9cd0ff;
+}
+
+.auth-hint:hover .credentials-tooltip,
+.auth-hint:focus-within .credentials-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .auth-card form {

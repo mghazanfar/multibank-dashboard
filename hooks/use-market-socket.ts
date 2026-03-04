@@ -8,21 +8,32 @@ interface StreamState {
   status: "connecting" | "connected" | "disconnected";
 }
 
-export function useMarketSocket(symbols: string[]) {
+export function useMarketSocket(symbols: string[], enabled: boolean) {
   const [state, setState] = useState<StreamState>({
     prices: {},
-    status: "connecting",
+    status: "disconnected",
   });
   const wsRef = useRef<WebSocket | null>(null);
+  const subscriptionsRef = useRef<Set<string>>(new Set());
+  const latestSymbolsRef = useRef<string[]>(symbols);
 
   useEffect(() => {
+    if (!enabled) {
+      subscriptionsRef.current = new Set();
+      wsRef.current?.close();
+      wsRef.current = null;
+      return;
+    }
+
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${protocol}://${window.location.host}/api/ws`);
     wsRef.current = ws;
 
     ws.onopen = () => {
       setState((current) => ({ ...current, status: "connected" }));
-      symbols.forEach((symbol) => {
+
+      latestSymbolsRef.current.forEach((symbol) => {
+        subscriptionsRef.current.add(symbol);
         ws.send(JSON.stringify({ type: "subscribe", symbol }));
       });
     };
@@ -57,7 +68,41 @@ export function useMarketSocket(symbols: string[]) {
     return () => {
       ws.close();
     };
-  }, [symbols]);
+  }, [enabled]);
+
+  useEffect(() => {
+    latestSymbolsRef.current = symbols;
+
+    if (!enabled) {
+      return;
+    }
+
+    const ws = wsRef.current;
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const currentSymbols = new Set(symbols);
+
+    subscriptionsRef.current.forEach((symbol) => {
+      if (!currentSymbols.has(symbol)) {
+        ws.send(JSON.stringify({ type: "unsubscribe", symbol }));
+        subscriptionsRef.current.delete(symbol);
+      }
+    });
+
+    currentSymbols.forEach((symbol) => {
+      if (!subscriptionsRef.current.has(symbol)) {
+        ws.send(JSON.stringify({ type: "subscribe", symbol }));
+        subscriptionsRef.current.add(symbol);
+      }
+    });
+  }, [enabled, symbols]);
+
+  if (!enabled) {
+    return { prices: {}, status: "disconnected" as const };
+  }
 
   return state;
 }

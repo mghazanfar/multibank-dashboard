@@ -32,6 +32,9 @@ A fullstack Next.js (App Router) trading dashboard with:
 ### Frontend
 
 - Auth gating via Context (`providers/auth-provider.tsx`)
+- Fixed demo credentials:
+  - Username: `senior.trader@multibank.com`
+  - Password: `MBank#2026!`
 - React Query cache for tickers and historical API reads
 - Real-time ticker grid and a selected instrument chart (`recharts`)
 - Alert threshold input that triggers a visual warning when crossed

@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchHistory, fetchTickers } from "@/lib/api/client";
+import { DEMO_PASSWORD, DEMO_USERNAME } from "@/lib/auth/credentials";
 import { useAuth } from "@/providers/auth-provider";
 import { useMarketSocket } from "@/hooks/use-market-socket";
 import type { TickerSummary } from "@/lib/types/market";
@@ -17,8 +18,8 @@ function formatPrice(value: number) {
 
 function LoginCard() {
   const { login } = useAuth();
-  const [username, setUsername] = useState("Senior Candidate");
-  const [password, setPassword] = useState("password");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -30,16 +31,33 @@ function LoginCard() {
       setError(null);
       await login(username, password);
     } catch {
-      setError("Unable to authenticate. Try any non-empty credentials.");
+      setError("Invalid credentials. Click Credentials to fill the form.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const fillCredentials = () => {
+    setUsername(DEMO_USERNAME);
+    setPassword(DEMO_PASSWORD);
+    setError(null);
+  };
+
   return (
     <section className="auth-card">
       <h1>Real-Time Trading Dashboard</h1>
-      <p>Mock auth via Context API. Enter any credentials to continue.</p>
+      <p className="auth-hint">
+        Mock auth via Context API.
+        <button
+          type="button"
+          className="credentials-trigger"
+          aria-label="Fill credentials in login form"
+          onClick={fillCredentials}
+        >
+          Credentials
+        </button>
+        <span className="credentials-tooltip">Click to fill credentials in the form.</span>
+      </p>
       <form onSubmit={onSubmit}>
         <label htmlFor="username">Username</label>
         <input id="username" value={username} onChange={(event) => setUsername(event.target.value)} />
@@ -199,13 +217,14 @@ export function TradingDashboard() {
     queryKey: ["tickers"],
     queryFn: fetchTickers,
     refetchInterval: 15_000,
+    enabled: Boolean(user),
   });
   const [selectedSymbol, setSelectedSymbol] = useState<string>("AAPL");
   const [threshold, setThreshold] = useState("");
 
   const symbols = useMemo(() => tickersQuery.data?.map((ticker) => ticker.symbol) ?? [], [tickersQuery.data]);
   const selected = symbols.includes(selectedSymbol) ? selectedSymbol : (symbols[0] ?? "");
-  const stream = useMarketSocket(symbols);
+  const stream = useMarketSocket(symbols, Boolean(user));
 
   if (!user) {
     return <LoginCard />;
