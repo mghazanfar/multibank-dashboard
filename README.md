@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MultiBank Real-Time Trading Dashboard
 
-## Getting Started
+A fullstack Next.js (App Router) trading dashboard with:
 
-First, run the development server:
+- REST APIs for ticker discovery and mocked historical data
+- WebSocket streaming for real-time price ticks
+- React Query caching for API reads
+- Context-based mocked auth (no Redux)
+- Responsive live dashboard with charting and threshold alerts
+- Unit tests for backend market simulation logic
+- Docker containerization
+
+## Architecture
+
+### Backend (inside Next.js runtime)
+
+- `GET /api/tickers`
+  - Returns the available instruments and their latest simulated prices.
+- `GET /api/history?ticker=AAPL&points=120`
+  - Returns mocked historical data with in-memory server-side caching.
+- `POST /api/auth/login`
+  - Mock login endpoint (accepts any non-empty username/password).
+- `GET /api/auth/me`
+  - Mock auth verification endpoint.
+- `ws://<host>/api/ws`
+  - Realtime subscription channel.
+  - Client messages:
+    - `{ "type": "subscribe", "symbol": "AAPL" }`
+    - `{ "type": "unsubscribe", "symbol": "AAPL" }`
+  - Server streams tick updates per subscribed symbol.
+
+### Frontend
+
+- Auth gating via Context (`providers/auth-provider.tsx`)
+- React Query cache for tickers and historical API reads
+- Real-time ticker grid and a selected instrument chart (`recharts`)
+- Alert threshold input that triggers a visual warning when crossed
+
+## Key Design Choices
+
+- **Microservice-friendly structure**: market simulation and API contracts are isolated in `lib/market` and `app/api/*` so they can be extracted to a dedicated service later.
+- **WebSocket over polling**: live prices stream from a single simulation source.
+- **Hybrid caching**:
+  - Server-side historical cache (20 seconds)
+  - Client-side React Query stale-time caching
+- **Mocked auth**: Context keeps state simple and avoids over-engineering.
+
+## Run Locally
+
+1. Use Node 22.
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev` - starts custom Next + WebSocket server
+- `npm run build` - production build
+- `npm run start` - starts production server
+- `npm run lint` - ESLint
+- `npm run test` - unit tests (Node test runner via `tsx`)
+- `npm run test:watch` - watch mode tests
 
-## Learn More
+## Testing
 
-To learn more about Next.js, take a look at the following resources:
+Unit tests cover backend market simulation behavior:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- ticker list generation
+- realtime tick emission
+- historical data cache behavior
+- unknown ticker handling
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Run:
 
-## Deploy on Vercel
+```bash
+npm run test
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Docker
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Build image:
+
+```bash
+docker build -t multibank-realtime-dashboard .
+```
+
+Run container:
+
+```bash
+docker run --rm -p 3000:3000 multibank-realtime-dashboard
+```
+
+## Assumptions & Trade-offs
+
+- Uses in-memory market simulation and cache (no persistent DB).
+- Auth is intentionally mocked for challenge scope.
+- WebSocket path is hosted by a custom Next server (`server.ts`) instead of a managed broker.
+- No Kubernetes manifests included in this version.
+
+## Bonus Features Implemented
+
+- Mocked user authentication (Context-based)
+- Historical data caching (server + React Query)
+- Price threshold alerts in UI
