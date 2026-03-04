@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { login as loginRequest } from "@/lib/api/client";
 import type { AuthUser } from "@/lib/types/auth";
 
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
+  isHydrated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -17,23 +18,35 @@ const TOKEN_KEY = "trading-dashboard-token";
 const USER_KEY = "trading-dashboard-user";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<{ user: AuthUser | null; token: string | null }>(() => {
-    if (typeof window === "undefined") {
-      return { user: null, token: null };
-    }
+  const [session, setSession] = useState<{ user: AuthUser | null; token: string | null }>({
+    user: null,
+    token: null,
+  });
+  const [isHydrated, setIsHydrated] = useState(false);
 
+  const hydrateFromStorage = useCallback(() => {
     const storedToken = window.localStorage.getItem(TOKEN_KEY);
     const storedUser = window.localStorage.getItem(USER_KEY);
 
     if (storedToken && storedUser) {
-      return {
+      setSession({
         token: storedToken,
         user: JSON.parse(storedUser) as AuthUser,
-      };
+      });
     }
 
-    return { user: null, token: null };
-  });
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      hydrateFromStorage();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [hydrateFromStorage]);
 
   const login = useCallback(async (username: string, password: string) => {
     const response = await loginRequest(username, password);
@@ -54,10 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user: session.user,
       token: session.token,
+      isHydrated,
       login,
       logout,
     }),
-    [login, logout, session.token, session.user],
+    [isHydrated, login, logout, session.token, session.user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -18,57 +18,74 @@ export function useMarketSocket(symbols: string[], enabled: boolean) {
   const latestSymbolsRef = useRef<string[]>(symbols);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || symbols.length === 0) {
       subscriptionsRef.current = new Set();
       wsRef.current?.close();
       wsRef.current = null;
       return;
     }
 
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${protocol}://${window.location.host}/api/ws`);
-    wsRef.current = ws;
+    const connectTimer = window.setTimeout(() => {
+      setState((current) => ({ ...current, status: "connecting" }));
 
-    ws.onopen = () => {
-      setState((current) => ({ ...current, status: "connected" }));
+      const configuredUrl = process.env.NEXT_PUBLIC_MARKET_WS_URL;
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const defaultUrl = `${protocol}://${window.location.hostname}:3001/api/ws`;
+      const ws = new WebSocket(configuredUrl ?? defaultUrl);
+      wsRef.current = ws;
 
-      latestSymbolsRef.current.forEach((symbol) => {
-        subscriptionsRef.current.add(symbol);
-        ws.send(JSON.stringify({ type: "subscribe", symbol }));
-      });
-    };
+      ws.onopen = () => {
+        setState((current) => ({ ...current, status: "connected" }));
 
-    ws.onclose = () => {
-      setState((current) => ({ ...current, status: "disconnected" }));
-    };
+        latestSymbolsRef.current.forEach((symbol) => {
+          subscriptionsRef.current.add(symbol);
+          ws.send(JSON.stringify({ type: "subscribe", symbol }));
+        });
+      };
 
-    ws.onerror = () => {
-      setState((current) => ({ ...current, status: "disconnected" }));
-    };
+      ws.onclose = () => {
+        setState((current) => ({ ...current, status: "disconnected" }));
+      };
 
-    ws.onmessage = (event) => {
-      const payload = JSON.parse(event.data) as Partial<TickMessage> & { type?: string };
+      ws.onerror = () => {
+        setState((current) => ({ ...current, status: "disconnected" }));
+      };
 
-      if (payload.type !== "tick" || !payload.symbol || typeof payload.price !== "number") {
-        return;
-      }
+      ws.onmessage = (event) => {
+        const payload = JSON.parse(event.data) as Partial<TickMessage> & { type?: string };
 
-      const symbol = payload.symbol;
-      const price = payload.price;
+        if (payload.type !== "tick" || !payload.symbol || typeof payload.price !== "number") {
+          return;
+        }
 
-      setState((current) => ({
-        ...current,
-        prices: {
-          ...current.prices,
-          [symbol]: price,
-        },
-      }));
-    };
+        const symbol = payload.symbol;
+        const price = payload.price;
+
+        setState((current) => ({
+          ...current,
+          prices: {
+            ...current.prices,
+            [symbol]: price,
+          },
+        }));
+      };
+    }, 0);
 
     return () => {
-      ws.close();
+      window.clearTimeout(connectTimer);
+      const ws = wsRef.current;
+
+      if (ws) {
+        if (ws.readyState === WebSocket.CONNECTING) {
+          ws.onopen = () => ws.close();
+        } else {
+          ws.close();
+        }
+      }
+
+      wsRef.current = null;
     };
-  }, [enabled]);
+  }, [enabled, symbols.length]);
 
   useEffect(() => {
     latestSymbolsRef.current = symbols;
@@ -100,7 +117,7 @@ export function useMarketSocket(symbols: string[], enabled: boolean) {
     });
   }, [enabled, symbols]);
 
-  if (!enabled) {
+  if (!enabled || symbols.length === 0) {
     return { prices: {}, status: "disconnected" as const };
   }
 

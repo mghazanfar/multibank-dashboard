@@ -212,7 +212,7 @@ function PriceChart({
 }
 
 export function TradingDashboard() {
-  const { user } = useAuth();
+  const { user, isHydrated } = useAuth();
   const tickersQuery = useQuery({
     queryKey: ["tickers"],
     queryFn: fetchTickers,
@@ -225,6 +225,10 @@ export function TradingDashboard() {
   const symbols = useMemo(() => tickersQuery.data?.map((ticker) => ticker.symbol) ?? [], [tickersQuery.data]);
   const selected = symbols.includes(selectedSymbol) ? selectedSymbol : (symbols[0] ?? "");
   const stream = useMarketSocket(symbols, Boolean(user));
+
+  if (!isHydrated) {
+    return <EmptyState message="Loading session..." />;
+  }
 
   if (!user) {
     return <LoginCard />;
